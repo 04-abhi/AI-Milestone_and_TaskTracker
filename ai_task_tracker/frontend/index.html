@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AI Task Tracker — Intelligent productivity management">
+  <title>AI Task Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23d4a843'/><text y='22' x='6' font-size='18'>✓</text></svg>">
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/layout.css">
+</head>
+<body>
+
+<div class="bg-mesh"></div>
+<div id="toast-container"></div>
+
+<!-- ════════════════════════════════════════════════════════
+     AUTH SECTION
+════════════════════════════════════════════════════════ -->
+<div id="auth-section">
+
+  <!-- Login -->
+  <div id="auth-login" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div style="width:100%;max-width:420px">
+
+      <!-- Logo -->
+      <div style="text-align:center;margin-bottom:40px">
+        <div style="width:56px;height:56px;background:linear-gradient(135deg,var(--gold-500),var(--gold-300));border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:1.6rem;box-shadow:0 0 30px rgba(212,168,67,0.3);margin-bottom:16px">✓</div>
+        <h1 style="font-size:1.9rem;margin-bottom:4px">AI Task Tracker</h1>
+        <p style="color:var(--text-muted);font-size:0.875rem">Your intelligent productivity companion</p>
+      </div>
+
+      <div class="glass-card" style="padding:36px 32px">
+        <h2 style="font-size:1.35rem;margin-bottom:6px">Welcome back</h2>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:28px">Sign in to continue to your workspace</p>
+
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input id="login-email" type="email" class="form-control" placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input id="login-password" type="password" class="form-control" placeholder="••••••••" autocomplete="current-password"
+                   onkeydown="if(event.key==='Enter') AuthPage.login()">
+          </div>
+          <button id="login-btn" class="btn btn-primary w-full btn-lg" style="margin-top:4px" onclick="AuthPage.login()">
+            Sign In
+          </button>
+        </div>
+
+        <div class="divider"></div>
+        <p style="text-align:center;font-size:0.875rem;color:var(--text-muted)">
+          Don't have an account?
+          <a href="#/register" onclick="AuthPage.renderRegister()" style="margin-left:4px">Create one</a>
+        </p>
+      </div>
+
+      <p style="text-align:center;margin-top:20px;font-size:0.78rem;color:var(--text-muted)">
+        Demo: demo@aitasktracker.com / Demo@123456
+      </p>
+    </div>
+  </div>
+
+  <!-- Register -->
+  <div id="auth-register" class="hidden" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div style="width:100%;max-width:440px">
+      <div style="text-align:center;margin-bottom:36px">
+        <div style="width:56px;height:56px;background:linear-gradient(135deg,var(--gold-500),var(--gold-300));border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:1.6rem;box-shadow:0 0 30px rgba(212,168,67,0.3);margin-bottom:16px">✓</div>
+        <h1 style="font-size:1.9rem;margin-bottom:4px">Create Account</h1>
+        <p style="color:var(--text-muted);font-size:0.875rem">Start your productivity journey</p>
+      </div>
+      <div class="glass-card" style="padding:36px 32px">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input id="reg-fullname" type="text" class="form-control" placeholder="John Doe">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label class="form-label">Username <span style="color:var(--rose)">*</span></label>
+              <input id="reg-username" type="text" class="form-control" placeholder="johndoe">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email <span style="color:var(--rose)">*</span></label>
+              <input id="reg-email" type="email" class="form-control" placeholder="you@example.com">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password <span style="color:var(--rose)">*</span></label>
+            <input id="reg-password" type="password" class="form-control" placeholder="Min. 8 chars with uppercase & number"
+                   onkeydown="if(event.key==='Enter') AuthPage.register()">
+          </div>
+          <button id="register-btn" class="btn btn-primary w-full btn-lg" style="margin-top:4px" onclick="AuthPage.register()">
+            Create Account
+          </button>
+        </div>
+        <div class="divider"></div>
+        <p style="text-align:center;font-size:0.875rem;color:var(--text-muted)">
+          Already have an account? <a href="#/login" onclick="AuthPage.renderLogin()" style="margin-left:4px">Sign in</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /auth-section -->
+
+<!-- ════════════════════════════════════════════════════════
+     APP SECTION
+════════════════════════════════════════════════════════ -->
+<div id="app-section" class="hidden">
+
+  <div class="app-shell">
+
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-mark">✓</div>
+        <div class="sidebar-logo-text">
+          <span class="sidebar-logo-name">AI Task Tracker</span>
+          <span class="sidebar-logo-tag">Intelligence &amp; Focus</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <span class="nav-section-label">Workspace</span>
+        <a class="nav-item" data-route="#/dashboard" href="#/dashboard">
+          <span class="nav-icon">⊞</span> Dashboard
+        </a>
+        <a class="nav-item" data-route="#/tasks" href="#/tasks">
+          <span class="nav-icon">✅</span> Tasks
+        </a>
+        <a class="nav-item" data-route="#/milestones" href="#/milestones">
+          <span class="nav-icon">🎯</span> Milestones
+        </a>
+
+        <span class="nav-section-label" style="margin-top:8px">Intelligence</span>
+        <a class="nav-item" data-route="#/ai-suggestions" href="#/ai-suggestions">
+          <span class="nav-icon">🤖</span> AI Suggestions
+        </a>
+        <a class="nav-item" data-route="#/analytics" href="#/analytics">
+          <span class="nav-icon">📊</span> Analytics
+        </a>
+
+        <span class="nav-section-label" style="margin-top:8px">Account</span>
+        <a class="nav-item" data-route="#/notifications" href="#/notifications">
+          <span class="nav-icon">🔔</span> Notifications
+          <span class="nav-badge" data-for="notifications" style="display:none">0</span>
+        </a>
+        <a class="nav-item" data-route="#/settings" href="#/settings">
+          <span class="nav-icon">⚙</span> Settings
+        </a>
+        <a class="nav-item hidden" data-route="#/admin" href="#/admin" data-admin-only>
+          <span class="nav-icon">🛡</span> Admin
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user" onclick="Router.navigate('#/settings')">
+          <div class="user-avatar">U</div>
+          <div class="user-info">
+            <div class="user-name">Loading…</div>
+            <div class="user-role">Member</div>
+          </div>
+          <span class="user-chevron">›</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Mobile overlay ── -->
+    <div class="sidebar-overlay"></div>
+
+    <!-- ── Header ── -->
+    <header class="app-header">
+      <button class="mobile-menu-btn">☰</button>
+      <div>
+        <div class="header-page-title">Dashboard</div>
+        <div class="header-page-subtitle">Your productivity overview</div>
+      </div>
+      <div class="header-search">
+        <span class="search-icon">⌕</span>
+        <input type="text" placeholder="Search tasks… (Ctrl+K)" id="global-search">
+      </div>
+      <div class="header-actions">
+        <button class="header-btn" onclick="Router.navigate('#/notifications')" data-tooltip="Notifications">
+          🔔<span class="notif-dot" style="display:none"></span>
+        </button>
+        <button class="header-btn" onclick="SettingsPage.logout()" data-tooltip="Sign out">⏻</button>
+      </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <main class="app-main">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Good morning ✨</h2>
+            <p class="page-subtitle">Here's what's happening with your tasks today</p>
+          </div>
+          <button class="btn btn-primary" onclick="TasksPage.openCreate()">+ New Task</button>
+        </div>
+        <div class="stats-grid" id="dashboard-stats">
+          <!-- injected by JS -->
+          <div class="glass-card stat-card skeleton" style="height:90px"></div>
+          <div class="glass-card stat-card skeleton" style="height:90px"></div>
+          <div class="glass-card stat-card skeleton" style="height:90px"></div>
+          <div class="glass-card stat-card skeleton" style="height:90px"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px" id="dashboard-mid">
+          <div class="glass-card" style="padding:24px">
+            <h3 style="font-family:var(--font-display);margin-bottom:16px">14-Day Productivity</h3>
+            <canvas id="productivity-chart" style="width:100%;height:160px"></canvas>
+          </div>
+          <div class="glass-card" style="padding:24px" id="activity-summary">
+            <div class="skeleton" style="height:100%"></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="glass-card" style="padding:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <h3 style="font-family:var(--font-display);font-size:1rem">Recent Tasks</h3>
+              <a href="#/tasks" class="text-sm text-gold">View all →</a>
+            </div>
+            <div id="dashboard-recent-tasks">
+              <div class="skeleton" style="height:14px;margin-bottom:8px"></div>
+              <div class="skeleton" style="height:14px;margin-bottom:8px;width:80%"></div>
+              <div class="skeleton" style="height:14px;width:60%"></div>
+            </div>
+          </div>
+          <div class="glass-card" style="padding:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+              <h3 style="font-family:var(--font-display);font-size:1rem">AI Suggestions</h3>
+              <a href="#/ai-suggestions" class="text-sm text-gold">View all →</a>
+            </div>
+            <div id="dashboard-suggestions">
+              <div class="skeleton" style="height:14px;margin-bottom:8px"></div>
+              <div class="skeleton" style="height:14px;width:75%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TASKS -->
+      <div class="page" id="page-tasks">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Tasks</h2>
+            <p class="page-subtitle">Manage and track all your tasks</p>
+          </div>
+          <button class="btn btn-primary" onclick="TasksPage.openCreate()">+ New Task</button>
+        </div>
+
+        <!-- Filters -->
+        <div class="filter-bar">
+          <div class="header-search" style="width:240px;flex-shrink:0">
+            <span class="search-icon">⌕</span>
+            <input type="text" placeholder="Search tasks…" id="task-search">
+          </div>
+          <span style="color:var(--text-muted);font-size:0.8rem">Status:</span>
+          <button class="filter-chip" data-filter="status" data-value="todo">To Do</button>
+          <button class="filter-chip" data-filter="status" data-value="in_progress">In Progress</button>
+          <button class="filter-chip" data-filter="status" data-value="completed">Done</button>
+          <button class="filter-chip" data-filter="status" data-value="on_hold">On Hold</button>
+          <span style="color:var(--text-muted);font-size:0.8rem">Priority:</span>
+          <button class="filter-chip" data-filter="priority" data-value="urgent">🔴 Urgent</button>
+          <button class="filter-chip" data-filter="priority" data-value="high">🟠 High</button>
+          <select class="form-control" id="task-sort" style="width:180px;padding:7px 12px;font-size:0.82rem;flex-shrink:0">
+            <option value="created_at:desc">Newest First</option>
+            <option value="created_at:asc">Oldest First</option>
+            <option value="due_date:asc">Due Date ↑</option>
+            <option value="due_date:desc">Due Date ↓</option>
+            <option value="priority:desc">Priority ↓</option>
+          </select>
+        </div>
+
+        <div id="task-list-container"></div>
+        <div id="task-pagination"></div>
+      </div>
+
+      <!-- MILESTONES -->
+      <div class="page" id="page-milestones">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Milestones</h2>
+            <p class="page-subtitle">Group tasks into goals and track progress</p>
+          </div>
+          <button class="btn btn-primary" onclick="MilestonesPage.openCreate()">+ New Milestone</button>
+        </div>
+        <div id="milestones-container"></div>
+      </div>
+
+      <!-- AI SUGGESTIONS -->
+      <div class="page" id="page-ai-suggestions">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">AI Suggestions</h2>
+            <p class="page-subtitle">Intelligent recommendations based on your productivity patterns</p>
+          </div>
+          <button id="generate-suggestions-btn" class="btn btn-primary" onclick="AISuggestionsPage.generate()">
+            🤖 Generate Suggestions
+          </button>
+        </div>
+        <div class="glass-card" style="padding:20px;margin-bottom:20px;border-left:3px solid var(--violet)">
+          <div style="display:flex;gap:12px;align-items:flex-start">
+            <span style="font-size:1.4rem">✨</span>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px">How AI Suggestions Work</div>
+              <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.5">
+                The rule-based engine analyses your task patterns, overdue items, workload, and streaks every 6 hours to generate personalised suggestions. Click <strong>Generate</strong> to run it now.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div id="suggestions-container"></div>
+      </div>
+
+      <!-- ANALYTICS -->
+      <div class="page" id="page-analytics">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Analytics</h2>
+            <p class="page-subtitle">Deep insights into your productivity patterns</p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="filter-chip active" onclick="AnalyticsPage.fetchAndRender(7);setActiveAnalyticsPeriod(this)">7d</button>
+            <button class="filter-chip" onclick="AnalyticsPage.fetchAndRender(30);setActiveAnalyticsPeriod(this)">30d</button>
+            <button class="filter-chip" onclick="AnalyticsPage.fetchAndRender(90);setActiveAnalyticsPeriod(this)">90d</button>
+          </div>
+        </div>
+        <div id="analytics-container"></div>
+      </div>
+
+      <!-- NOTIFICATIONS -->
+      <div class="page" id="page-notifications">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Notifications</h2>
+            <p class="page-subtitle">Stay on top of important updates</p>
+          </div>
+          <button class="btn btn-ghost" onclick="NotificationsPage.markAllRead()">✓ Mark All Read</button>
+        </div>
+        <div id="notifications-container"></div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="page" id="page-settings">
+        <div class="page-header">
+          <div><h2 class="page-title">Settings</h2><p class="page-subtitle">Manage your account and preferences</p></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:900px">
+          <!-- Profile Card -->
+          <div class="glass-card" style="padding:28px;grid-column:1/-1">
+            <div style="display:flex;align-items:center;gap:20px;margin-bottom:24px">
+              <div class="user-avatar" id="settings-avatar" style="width:64px;height:64px;font-size:1.4rem;border-radius:16px">U</div>
+              <div>
+                <div style="font-size:1.1rem;font-weight:600" id="setting-display-name">Loading…</div>
+                <div style="font-size:0.85rem;color:var(--text-muted)" id="setting-email"></div>
+                <div style="font-size:0.78rem;color:var(--gold-400)" id="setting-username"></div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+              <div class="form-group">
+                <label class="form-label">Full Name</label>
+                <input id="setting-full_name" type="text" class="form-control" placeholder="Your full name">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Timezone</label>
+                <select id="setting-timezone" class="form-control">
+                  <option value="UTC">UTC</option>
+                  <option value="America/New_York">Eastern Time</option>
+                  <option value="America/Chicago">Central Time</option>
+                  <option value="America/Denver">Mountain Time</option>
+                  <option value="America/Los_Angeles">Pacific Time</option>
+                  <option value="Europe/London">London</option>
+                  <option value="Europe/Paris">Paris</option>
+                  <option value="Asia/Kolkata">India (IST)</option>
+                  <option value="Asia/Tokyo">Tokyo</option>
+                  <option value="Asia/Shanghai">Shanghai</option>
+                  <option value="Australia/Sydney">Sydney</option>
+                </select>
+              </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label class="form-label">Bio</label>
+                <textarea id="setting-bio" class="form-control" placeholder="Tell us about yourself…" rows="2"></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Theme</label>
+                <select id="setting-theme" class="form-control">
+                  <option value="dark">Dark (Default)</option>
+                  <option value="light">Light</option>
+                </select>
+              </div>
+            </div>
+            <button id="save-profile-btn" class="btn btn-primary" onclick="SettingsPage.saveProfile()">Save Profile</button>
+          </div>
+          <!-- Password Card -->
+          <div class="glass-card" style="padding:28px">
+            <h3 style="font-family:var(--font-display);margin-bottom:20px">Change Password</h3>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div class="form-group">
+                <label class="form-label">Current Password</label>
+                <input id="current-password" type="password" class="form-control" placeholder="••••••••">
+              </div>
+              <div class="form-group">
+                <label class="form-label">New Password</label>
+                <input id="new-password" type="password" class="form-control" placeholder="Min 8 chars, uppercase & number">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirm Password</label>
+                <input id="confirm-password" type="password" class="form-control" placeholder="Repeat new password">
+              </div>
+              <button id="change-pwd-btn" class="btn btn-ghost" onclick="SettingsPage.changePassword()">Update Password</button>
+            </div>
+          </div>
+          <!-- Danger Zone -->
+          <div class="glass-card" style="padding:28px;border-color:rgba(251,113,133,0.2)">
+            <h3 style="font-family:var(--font-display);margin-bottom:6px;color:var(--rose)">Danger Zone</h3>
+            <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:20px">These actions are irreversible.</p>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <button class="btn btn-ghost" onclick="SettingsPage.logout()">⏻ Sign Out</button>
+              <button class="btn btn-danger" onclick="if(confirm('Delete your account? All data will be lost.')) api.delete('/users/me').then(()=>{api.clearTokens();window.location.hash='#/login'})">
+                🗑 Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMIN -->
+      <div class="page" id="page-admin">
+        <div class="page-header">
+          <div><h2 class="page-title">Admin Panel</h2><p class="page-subtitle">System management and user oversight</p></div>
+        </div>
+        <div class="stats-grid" id="admin-stats" style="margin-bottom:24px"></div>
+        <div class="glass-card" style="overflow:hidden">
+          <div style="padding:20px 24px;border-bottom:1px solid var(--glass-border);display:flex;align-items:center;justify-content:space-between">
+            <h3 style="font-family:var(--font-display);font-size:1rem">All Users</h3>
+          </div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr style="border-bottom:1px solid var(--glass-border)">
+                  <th style="padding:12px 16px;text-align:left;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600">User</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600">Email</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600">Role</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600">Status</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600">Tasks</th>
+                  <th style="padding:12px 16px;text-align:left;font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;font-weight:600">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main><!-- /app-main -->
+  </div><!-- /app-shell -->
+
+</div><!-- /app-section -->
+
+<!-- ════════════════════════════════════════════════════════
+     MODALS
+════════════════════════════════════════════════════════ -->
+
+<!-- Task Form Modal -->
+<div class="modal-overlay" id="modal-task-form">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="task-form-title">New Task</h3>
+      <button class="modal-close" onclick="Modal.close('modal-task-form')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="form-group">
+          <label class="form-label">Title <span style="color:var(--rose)">*</span></label>
+          <input id="tf-title" type="text" class="form-control" placeholder="What needs to be done?">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea id="tf-description" class="form-control" rows="3" placeholder="Add details…"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select id="tf-priority" class="form-control">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select id="tf-category" class="form-control">
+              <option value="work">💼 Work</option>
+              <option value="personal">🏠 Personal</option>
+              <option value="health">💪 Health</option>
+              <option value="learning">📚 Learning</option>
+              <option value="finance">💰 Finance</option>
+              <option value="other" selected>📌 Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select id="tf-status" class="form-control">
+              <option value="todo" selected>To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="on_hold">On Hold</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Due Date</label>
+            <input id="tf-due-date" type="datetime-local" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Estimated Hours</label>
+            <input id="tf-hours" type="number" class="form-control" placeholder="e.g. 2.5" min="0" step="0.5">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tags</label>
+            <input id="tf-tags" type="text" class="form-control" placeholder="design, backend, urgent">
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--obsidian-700);border-radius:var(--radius-sm)">
+          <input id="tf-pinned" type="checkbox" style="width:16px;height:16px;accent-color:var(--gold-500)">
+          <label for="tf-pinned" style="font-size:0.875rem;cursor:pointer">📌 Pin this task to the top</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('modal-task-form')">Cancel</button>
+      <button id="task-save-btn" class="btn btn-primary" onclick="TasksPage.saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Detail Modal -->
+<div class="modal-overlay" id="modal-task-detail">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h3 class="modal-title" id="task-detail-title" style="font-size:1.2rem"></h3>
+      <button class="modal-close" onclick="Modal.close('modal-task-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="task-detail-body"></div>
+  </div>
+</div>
+
+<!-- Milestone Form Modal -->
+<div class="modal-overlay" id="modal-milestone-form">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="milestone-form-title">New Milestone</h3>
+      <button class="modal-close" onclick="Modal.close('modal-milestone-form')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="form-group">
+          <label class="form-label">Title <span style="color:var(--rose)">*</span></label>
+          <input id="mf-title" type="text" class="form-control" placeholder="Milestone name">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea id="mf-description" class="form-control" rows="2" placeholder="What is this milestone about?"></textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label">Color</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input id="mf-color" type="color" value="#6366f1" style="width:40px;height:38px;border:none;background:none;cursor:pointer;border-radius:6px">
+              <span style="font-size:0.8rem;color:var(--text-muted)">Pick a colour to identify this milestone</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Due Date</label>
+            <input id="mf-due-date" type="date" class="form-control">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="Modal.close('modal-milestone-form')">Cancel</button>
+      <button id="milestone-save-btn" class="btn btn-primary" onclick="MilestonesPage.save()">Save Milestone</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script src="js/pages/tasks.js"></script>
+<script src="js/pages/pages.js"></script>
+<script>
+// Analytics period switcher
+function setActiveAnalyticsPeriod(btn) {
+  document.querySelectorAll('#page-analytics .filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// Global search redirect
+document.getElementById('global-search')?.addEventListener('input', debounce(e => {
+  const q = e.target.value.trim();
+  if (q.length >= 2) {
+    Router.navigate('#/tasks');
+    setTimeout(() => {
+      const s = document.getElementById('task-search');
+      if (s) { s.value = q; s.dispatchEvent(new Event('input')); }
+    }, 100);
+  }
+}));
+
+// Dashboard extra widgets after stats load
+const _origDash = DashboardPage.render;
+DashboardPage.render = async function() {
+  await _origDash();
+  // Load recent tasks for dashboard
+  try {
+    const res = await api.getTasks({ per_page: 5, sort_by: 'updated_at', sort_order: 'desc' });
+    const el = document.getElementById('dashboard-recent-tasks');
+    if (el && res.data.length) {
+      el.innerHTML = res.data.map(t => `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--glass-border);cursor:pointer" onclick="TasksPage.openDetail(${t.id})">
+          <span style="font-size:0.8rem">${t.status==='completed'?'✅':'⬜'}</span>
+          <span style="font-size:0.875rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${t.status==='completed'?'text-decoration:line-through;color:var(--text-muted)':''}">${escapeHtml(t.title)}</span>
+          ${priorityBadge(t.priority)}
+        </div>`).join('');
+    }
+  } catch {}
+  // Load suggestions preview
+  try {
+    const res = await api.getSuggestions({ per_page: 3 });
+    const el = document.getElementById('dashboard-suggestions');
+    if (el && res.data.length) {
+      const icons = { prioritization:'🔴', time_management:'⏱️', workload_balance:'📊', overdue_alert:'⚠️', break_reminder:'☕', productivity_boost:'📈', streak_motivation:'🔥', task_breakdown:'📝', deadline_warning:'⏰', focus_mode:'🎯' };
+      el.innerHTML = res.data.map(s => `
+        <div style="padding:10px 0;border-bottom:1px solid var(--glass-border)">
+          <div style="font-weight:500;font-size:0.875rem;margin-bottom:2px">${icons[s.suggestion_type]||'💡'} ${escapeHtml(s.title)}</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);line-height:1.4">${escapeHtml(s.message.slice(0,80))}…</div>
+        </div>`).join('');
+    } else if (el) {
+      el.innerHTML = `<div class="text-sm text-muted" style="padding:10px 0">No pending suggestions. <a href="#/ai-suggestions" class="text-gold">Generate some →</a></div>`;
+    }
+  } catch {}
+};
+
+// Greet by time of day
+(function setGreeting() {
+  const h = new Date().getHours();
+  const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const el = document.querySelector('#page-dashboard .page-title');
+  if (el) el.textContent = `${g} ✨`;
+})();
+</script>
+</body>
+</html>
