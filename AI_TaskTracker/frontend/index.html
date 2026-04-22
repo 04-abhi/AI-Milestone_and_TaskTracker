@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Task Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f0b429'/><text y='22' x='7' font-size='18' fill='%230d0d12'>✓</text></svg>">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<div id="toasts"></div>
+
+<!-- ══════════════════════════════════════════════
+     AUTH SECTION
+══════════════════════════════════════════════ -->
+<div id="auth-section">
+
+  <!-- LANDING / HOME PAGE -->
+  <div id="home-box" class="landing-wrap">
+    <nav class="landing-nav">
+      <div class="landing-brand">
+        <div class="auth-logo-icon" style="width:32px;height:32px;font-size:1rem">✓</div>
+        <span style="font-weight:700;font-size:1.1rem">AI Task Tracker</span>
+      </div>
+      <div class="landing-nav-actions">
+        <button class="btn btn-ghost btn-sm" onclick="showLogin()">Sign In</button>
+        <button class="btn btn-primary btn-sm" onclick="showRegister()">Get Started Free</button>
+      </div>
+    </nav>
+
+    <div class="landing-hero">
+      <div class="landing-badge">✨ Smart Task Management</div>
+      <h1 class="landing-title">Organize your work.<br>Get more done.</h1>
+      <p class="landing-subtitle">
+        AI Task Tracker helps you manage tasks, subtasks, and milestones with
+        smart reminders, a beautiful calendar view, and push notifications
+        — so nothing falls through the cracks.
+      </p>
+      <div class="landing-cta">
+        <button class="btn btn-primary btn-lg" onclick="showRegister()">Start for free →</button>
+        <button class="btn btn-ghost btn-lg" onclick="showLogin()">Sign in</button>
+      </div>
+    </div>
+
+    <div class="landing-features">
+      <div class="feature-card">
+        <div class="feature-icon">📅</div>
+        <div class="feature-title">Calendar View</div>
+        <div class="feature-desc">See your entire week at a glance. Drag tasks by date and never miss a deadline.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔔</div>
+        <div class="feature-title">Push Notifications</div>
+        <div class="feature-desc">Get reminded on your phone when tasks are due — even when the browser is closed.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Keyboard First</div>
+        <div class="feature-desc">Press N to create a task, Escape to close modals. Fast for power users.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">☑</div>
+        <div class="feature-title">Subtasks & Tags</div>
+        <div class="feature-desc">Break big tasks into subtasks. Tag and filter to find anything instantly.</div>
+      </div>
+    </div>
+
+    <p class="landing-footer">Built with FastAPI · PostgreSQL · Vanilla JS</p>
+  </div>
+
+  <!-- LOGIN -->
+  <div id="login-box" class="auth-wrap hidden">
+    <div class="auth-box">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">✓</div>
+        <h1>AI Task Tracker</h1>
+        <p>Your personal productivity companion</p>
+      </div>
+      <div class="card auth-card">
+        <h2>Welcome back</h2>
+        <p class="sub">Sign in to continue</p>
+        <div class="auth-form">
+          <div class="form-group">
+            <label class="label">Email</label>
+            <input id="login-email" class="input" type="email"
+                   placeholder="you@example.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label class="label">Password</label>
+            <input id="login-password" class="input" type="password"
+                   placeholder="••••••••"
+                   onkeydown="if(event.key==='Enter') doLogin()">
+          </div>
+          <button id="login-btn" class="btn btn-primary w-full" style="margin-top:4px"
+                  onclick="doLogin()">Sign In</button>
+        </div>
+        <div class="auth-footer">
+          Don't have an account?
+          <a href="#" onclick="showRegister(); return false">Create one →</a>
+        </div>
+        <div class="auth-footer" style="margin-top:4px">
+          <a href="#" onclick="showHome(); return false">← Back to home</a>
+        </div>
+      </div>
+      <p style="text-align:center;margin-top:16px;font-size:0.78rem;color:var(--text-3)">
+        Default admin: admin@ait.com / Admin@1234
+      </p>
+    </div>
+  </div>
+
+  <!-- REGISTER -->
+  <div id="register-box" class="auth-wrap hidden">
+    <div class="auth-box">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">✓</div>
+        <h1>Create Account</h1>
+        <p>Start organising your tasks today</p>
+      </div>
+      <div class="card auth-card">
+        <h2>New account</h2>
+        <p class="sub">Fill in your details below</p>
+        <div class="auth-form">
+          <div class="input-row">
+            <div class="form-group">
+              <label class="label">Username <span style="color:var(--red)">*</span></label>
+              <input id="reg-username" class="input" type="text" placeholder="johndoe">
+            </div>
+            <div class="form-group">
+              <label class="label">Full Name</label>
+              <input id="reg-fullname" class="input" type="text" placeholder="John Doe">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="label">Email <span style="color:var(--red)">*</span></label>
+            <input id="reg-email" class="input" type="email" placeholder="you@example.com">
+          </div>
+          <div class="form-group">
+            <label class="label">Password <span style="color:var(--red)">*</span></label>
+            <input id="reg-password" class="input" type="password"
+                   placeholder="Min 8 chars, 1 uppercase, 1 number"
+                   onkeydown="if(event.key==='Enter') doRegister()">
+          </div>
+          <button id="register-btn" class="btn btn-primary w-full" style="margin-top:4px"
+                  onclick="doRegister()">Create Account</button>
+        </div>
+        <div class="auth-footer">
+          Already have an account?
+          <a href="#" onclick="showLogin(); return false">Sign in →</a>
+        </div>
+        <div class="auth-footer" style="margin-top:4px">
+          <a href="#" onclick="showHome(); return false">← Back to home</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /auth-section -->
+
+<!-- ══════════════════════════════════════════════
+     APP SECTION
+══════════════════════════════════════════════ -->
+<div id="app-section" class="hidden">
+  <div class="app-shell">
+
+    <!-- ── SIDEBAR ─────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">✓</div>
+        <span class="brand-name">Task Tracker</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <span class="nav-label">Menu</span>
+        <a class="nav-link" data-route="dashboard" href="#dashboard">
+          <span class="nav-icon">⊞</span> Dashboard
+        </a>
+        <a class="nav-link" data-route="tasks" href="#tasks">
+          <span class="nav-icon">✅</span> My Tasks
+        </a>
+        <a class="nav-link" data-route="calendar" href="#calendar">
+          <span class="nav-icon">📅</span> Calendar
+        </a>
+        <a class="nav-link" data-route="planner" href="#planner">
+          <span class="nav-icon">🚀</span> AI Planner
+        </a>
+        <a class="nav-link" data-route="procrastination" href="#procrastination">
+          <span class="nav-icon">⏰</span> Catch Up
+          <span class="nav-badge hidden" id="nav-procrast-badge">0</span>
+        </a>
+        <a class="nav-link" data-route="settings" href="#settings">
+          <span class="nav-icon">⚙</span> Settings
+        </a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="user-card" onclick="Router.navigate('#settings')">
+          <div class="user-avatar">U</div>
+          <div class="user-info">
+            <div class="user-name">Loading…</div>
+            <div class="user-email">—</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="sidebar-overlay"></div>
+
+    <!-- ── HEADER ───────────────────────────────────── -->
+    <header class="app-header">
+      <button class="btn btn-ghost btn-icon mob-menu" id="mob-btn">☰</button>
+      <span class="header-title">Dashboard</span>
+      <div class="header-actions">
+        <button class="theme-toggle" id="theme-btn" onclick="Theme.toggle()" title="Toggle theme">☀️</button>
+        <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sign out</button>
+      </div>
+    </header>
+
+    <!-- ── MAIN CONTENT ─────────────────────────────── -->
+    <main class="app-main">
+
+      <!-- ════════════════════════════════
+           DASHBOARD PAGE
+      ════════════════════════════════ -->
+      <div class="page" id="page-dashboard">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Dashboard</h2>
+            <p class="page-subtitle">Your productivity at a glance</p>
+          </div>
+          <button class="btn btn-primary" onclick="Tasks.openCreate()">+ New Task</button>
+        </div>
+
+        <!-- Onboarding banner (shown until user has real tasks) -->
+        <div id="onboarding-banner" class="onboarding-banner hidden">
+          <div class="onboarding-icon">👋</div>
+          <div class="onboarding-body">
+            <div class="onboarding-title">Welcome! Here's how to get started</div>
+            <div class="onboarding-steps">
+              <div class="onboarding-step" id="ob-step-1">
+                <span class="ob-num">1</span>
+                <span>Create your first task — press <kbd>N</kbd> or click <strong>+ New Task</strong></span>
+              </div>
+              <div class="onboarding-step" id="ob-step-2">
+                <span class="ob-num">2</span>
+                <span>Check out the <a href="#calendar" onclick="Router.navigate('#calendar')">📅 Calendar view</a> to see tasks by week</span>
+              </div>
+              <div class="onboarding-step" id="ob-step-3">
+                <span class="ob-num">3</span>
+                <span>Enable <a href="#settings" onclick="Router.navigate('#settings')">🔔 Push Notifications</a> in Settings to get phone reminders</span>
+              </div>
+            </div>
+          </div>
+          <button class="onboarding-dismiss" onclick="Onboarding.dismiss()" title="Dismiss">✕</button>
+        </div>
+
+        <!-- Stats grid -->
+        <div class="stats-grid">
+          <div class="card stat-card" style="--c:var(--accent)">
+            <div class="stat-label">Total Tasks</div>
+            <div class="stat-value" id="stat-total">—</div>
+          </div>
+          <div class="card stat-card" style="--c:var(--green)">
+            <div class="stat-label">Completed</div>
+            <div class="stat-value" id="stat-done">—</div>
+          </div>
+          <div class="card stat-card" style="--c:var(--blue)">
+            <div class="stat-label">In Progress</div>
+            <div class="stat-value" id="stat-inprog">—</div>
+          </div>
+          <div class="card stat-card" style="--c:var(--red)">
+            <div class="stat-label">Overdue</div>
+            <div class="stat-value" id="stat-overdue">—</div>
+          </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="card card-p" style="margin-bottom:16px">
+          <div class="flex items-center justify-between" style="margin-bottom:8px">
+            <span class="text-sm" style="font-weight:500">Overall Progress</span>
+            <span class="text-sm text-muted" id="progress-pct">0%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+          </div>
+        </div>
+
+        <!-- Due soon -->
+        <div class="card card-p" style="margin-bottom:16px">
+          <div class="flex items-center justify-between" style="margin-bottom:14px">
+            <h3>⏰ Due in 48 hours</h3>
+            <a href="#calendar" class="text-sm text-accent" onclick="Router.navigate('#calendar')">View calendar →</a>
+          </div>
+          <div id="urgent-tasks">
+            <div class="skel" style="height:14px;margin-bottom:8px"></div>
+            <div class="skel" style="height:14px;width:60%"></div>
+          </div>
+        </div>
+
+        <!-- Recent tasks -->
+        <div class="card card-p">
+          <div class="flex items-center justify-between" style="margin-bottom:14px">
+            <h3>Recent Tasks</h3>
+            <a href="#tasks" class="text-sm text-accent">View all →</a>
+          </div>
+          <div id="recent-tasks">
+            <div class="skel" style="height:14px;margin-bottom:8px"></div>
+            <div class="skel" style="height:14px;margin-bottom:8px;width:75%"></div>
+            <div class="skel" style="height:14px;width:55%"></div>
+          </div>
+        </div>
+      </div><!-- /page-dashboard -->
+
+      <!-- ════════════════════════════════
+           TASKS PAGE
+      ════════════════════════════════ -->
+      <div class="page" id="page-tasks">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">My Tasks</h2>
+            <p class="page-subtitle">Press <kbd>N</kbd> anywhere to create a new task</p>
+          </div>
+          <button class="btn btn-primary" onclick="Tasks.openCreate()">+ New Task</button>
+        </div>
+
+        <div class="filter-bar">
+          <div class="search-wrap">
+            <span class="search-icon">⌕</span>
+            <input id="task-search" type="text" placeholder="Search tasks…">
+          </div>
+          <span class="text-xs text-muted">Status:</span>
+          <button class="filter-chip" data-filter="status" data-value="todo">To Do</button>
+          <button class="filter-chip" data-filter="status" data-value="in_progress">In Progress</button>
+          <button class="filter-chip" data-filter="status" data-value="done">Done</button>
+          <span class="text-xs text-muted">Priority:</span>
+          <button class="filter-chip" data-filter="priority" data-value="urgent">🔴 Urgent</button>
+          <button class="filter-chip" data-filter="priority" data-value="high">🟠 High</button>
+          <span class="text-xs text-muted">Other:</span>
+          <button class="filter-chip" data-filter="archived" data-value="true">📥 Archived</button>
+        </div>
+
+        <div id="task-list"></div>
+        <div id="task-pager"></div>
+      </div><!-- /page-tasks -->
+
+      <!-- ════════════════════════════════
+           CALENDAR PAGE
+      ════════════════════════════════ -->
+      <div class="page" id="page-calendar">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Calendar</h2>
+            <p class="page-subtitle">Your week at a glance</p>
+          </div>
+          <button class="btn btn-primary" onclick="Tasks.openCreate()">+ New Task</button>
+        </div>
+
+        <!-- Week nav -->
+        <div class="cal-nav">
+          <button class="btn btn-ghost btn-sm" onclick="Calendar.prevWeek()">← Prev</button>
+          <span class="cal-week-label" id="cal-week-label">This Week</span>
+          <button class="btn btn-ghost btn-sm" onclick="Calendar.nextWeek()">Next →</button>
+          <button class="btn btn-ghost btn-sm" onclick="Calendar.goToday()">Today</button>
+        </div>
+
+        <!-- Day columns -->
+        <div class="cal-grid" id="cal-grid">
+          <!-- Rendered by Calendar.render() -->
+        </div>
+
+        <!-- Tasks with no due date -->
+        <div class="card card-p" style="margin-top:16px">
+          <h3 style="margin-bottom:12px">📋 No Due Date</h3>
+          <div id="cal-unscheduled"></div>
+        </div>
+      </div><!-- /page-calendar -->
+
+      <!-- ════════════════════════════════
+           AI MILESTONE PLANNER PAGE
+      ════════════════════════════════ -->
+      <div class="page" id="page-planner">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">🚀 AI Milestone Planner</h2>
+            <p class="page-subtitle">Generate a day-by-day action plan powered by AI</p>
+          </div>
+        </div>
+
+        <div class="card card-p" style="max-width:640px;margin:0 auto 24px">
+          <div class="form-group">
+            <label class="label">Goal Title <span style="color:var(--red)">*</span></label>
+            <input id="mp-title" class="input" type="text" placeholder="e.g. Learn React, Run 5K, Build a Portfolio…">
+          </div>
+          <div class="form-group">
+            <label class="label">Description</label>
+            <textarea id="mp-desc" class="input" rows="3" placeholder="Describe your goal, current level, constraints…"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="label">Deadline (days from today) <span style="color:var(--red)">*</span></label>
+            <input id="mp-days" class="input" type="number" min="1" max="365" placeholder="e.g. 7, 14, 30">
+          </div>
+          <button id="mp-generate-btn" class="btn btn-primary" style="width:100%" onclick="MilestonePlanner.generate()">
+            ✨ Generate Plan
+          </button>
+        </div>
+
+        <!-- Preview area -->
+        <div id="mp-preview" class="hidden" style="max-width:640px;margin:0 auto">
+          <div class="card card-p" style="margin-bottom:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <h3 id="mp-preview-title" style="margin:0"></h3>
+              <div class="flex gap-2">
+                <button class="btn btn-ghost btn-sm" onclick="MilestonePlanner.reset()">↩ Reset</button>
+                <button id="mp-save-btn" class="btn btn-primary btn-sm" onclick="MilestonePlanner.saveAll()">💾 Save All Tasks</button>
+              </div>
+            </div>
+            <p id="mp-preview-desc" class="text-sm text-muted" style="margin-bottom:8px"></p>
+            <p class="text-xs text-muted">📅 <span id="mp-preview-days"></span>-day plan &nbsp;·&nbsp; Review and edit tasks below before saving</p>
+          </div>
+          <div id="mp-day-cards"></div>
+        </div>
+      </div><!-- /page-planner -->
+
+      <!-- ════════════════════════════════
+           PROCRASTINATION TRACKER PAGE
+      ════════════════════════════════ -->
+      <div class="page" id="page-procrastination">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">⏰ Catch Up</h2>
+            <p class="page-subtitle">Overdue &amp; stalled tasks — take action now</p>
+          </div>
+        </div>
+        <div id="procrast-list">
+          <div class="empty">
+            <div class="empty-icon">🎉</div>
+            <div class="empty-title">You're all caught up!</div>
+            <div class="empty-desc">No overdue or stalled tasks found.</div>
+          </div>
+        </div>
+      </div><!-- /page-procrastination -->
+
+      <!-- ════════════════════════════════
+           SETTINGS PAGE
+      ════════════════════════════════ -->
+      <div class="page" id="page-settings">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">Settings</h2>
+            <p class="page-subtitle">Manage your account and preferences</p>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+
+          <!-- Profile -->
+          <div class="card card-p-lg">
+            <div class="flex items-center gap-3" style="margin-bottom:22px">
+              <div class="user-avatar" id="settings-avatar"
+                   style="width:52px;height:52px;font-size:1.3rem;border-radius:14px;flex-shrink:0">U</div>
+              <div>
+                <div style="font-weight:600;font-size:1rem" id="s-username">@username</div>
+                <div class="text-sm text-muted" id="s-email">email</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div class="form-group">
+                <label class="label">Full Name</label>
+                <input id="s-fullname" class="input" type="text" placeholder="Your name">
+              </div>
+              <div class="form-group">
+                <label class="label">Theme</label>
+                <select id="s-theme" class="input">
+                  <option value="dark">🌙 Dark</option>
+                  <option value="light">☀️ Light</option>
+                </select>
+              </div>
+              <button id="save-profile-btn" class="btn btn-primary"
+                      onclick="Settings.saveProfile()">Save Changes</button>
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div class="card card-p-lg">
+            <h3 style="margin-bottom:18px">Change Password</h3>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div class="form-group">
+                <label class="label">Current Password</label>
+                <input id="s-curr-pwd" class="input" type="password" placeholder="••••••••">
+              </div>
+              <div class="form-group">
+                <label class="label">New Password</label>
+                <input id="s-new-pwd" class="input" type="password" placeholder="Min 8 chars">
+              </div>
+              <div class="form-group">
+                <label class="label">Confirm New Password</label>
+                <input id="s-conf-pwd" class="input" type="password" placeholder="Repeat password">
+              </div>
+              <button id="change-pwd-btn" class="btn btn-secondary"
+                      onclick="Settings.changePassword()">Update Password</button>
+            </div>
+          </div>
+
+          <!-- Push Notifications -->
+          <div class="card card-p-lg" style="grid-column:1/-1;max-width:700px">
+            <h3 style="margin-bottom:6px">🔔 Push Notifications</h3>
+            <p class="text-sm text-muted" style="margin-bottom:18px">
+              Get reminded about tasks due soon — even when the browser tab is closed.
+              Works on Chrome, Edge, Firefox, and Android Chrome.
+            </p>
+            <div id="push-banner">
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button id="push-subscribe-btn" class="btn btn-primary"
+                        onclick="PushManager.subscribe()">🔔 Enable Notifications</button>
+                <button id="push-unsubscribe-btn" class="btn btn-secondary hidden"
+                        onclick="PushManager.unsubscribe()">Disable</button>
+              </div>
+              <p class="text-xs text-muted" style="margin-top:10px">
+                ⚠ Requires VAPID keys — run <code>python scripts/generate_vapid.py</code> then add to .env
+              </p>
+            </div>
+            <div id="push-unsupported" class="hidden">
+              <p class="text-sm text-muted">
+                Push notifications are not supported in this browser.
+                Try Chrome, Edge, or Firefox on desktop or Android.
+              </p>
+            </div>
+          </div>
+
+          <!-- Danger Zone -->
+          <div class="card card-p-lg" style="border-color:var(--red-dim)">
+            <h3 style="color:var(--red);margin-bottom:6px">Danger Zone</h3>
+            <p class="text-sm text-muted" style="margin-bottom:16px">
+              Permanently delete your account and all tasks.
+            </p>
+            <button class="btn btn-danger" onclick="
+              if(confirm('Delete your account and ALL data? This cannot be undone.')) {
+                API.users.deleteMe()
+                  .then(() => { API.tokens.clear(); State.clear(); location.reload(); })
+                  .catch(e => Toast.error(e.message));
+              }">
+              Delete My Account
+            </button>
+          </div>
+
+        </div>
+      </div><!-- /page-settings -->
+
+    </main>
+  </div><!-- /app-shell -->
+</div><!-- /app-section -->
+
+<!-- ══════════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════════ -->
+
+<!-- Task form modal -->
+<div class="modal-bg" id="modal-task">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <h3 id="task-modal-title">New Task</h3>
+      <button class="modal-close" onclick="Modal.close('modal-task')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-cols">
+        <div class="modal-col-main">
+          <div class="form-group">
+            <label class="label">Title <span style="color:var(--red)">*</span></label>
+            <input id="tf-title" class="input" type="text" placeholder="What needs to be done?">
+          </div>
+          <div class="form-group">
+            <label class="label">Description</label>
+            <textarea id="tf-desc" class="input" rows="3" placeholder="Add more details…"></textarea>
+          </div>
+          <div class="input-row">
+            <div class="form-group">
+              <label class="label">Priority</label>
+              <select id="tf-priority" class="input">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="label">Status</label>
+              <select id="tf-status" class="input">
+                <option value="todo" selected>To Do</option>
+                <option value="in_progress">In Progress</option>
+                <option value="done">Done</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="label">Due Date</label>
+            <input id="tf-due" class="input" type="datetime-local">
+          </div>
+          <div class="form-group">
+            <label class="label">Tags <span class="text-xs text-muted">(comma-separated)</span></label>
+            <input id="tf-tags" class="input" type="text" placeholder="work, client, design">
+          </div>
+        </div>
+
+        <!-- Subtasks column -->
+        <div class="modal-col-side" id="subtasks-section">
+          <div class="sub-label" style="margin-bottom:10px;font-size:0.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3)">Subtasks</div>
+          <div id="subtask-list" style="margin-bottom:10px"></div>
+          <div class="subtask-add-row">
+            <input id="new-subtask-input" class="input" type="text"
+                   placeholder="Add a subtask…"
+                   onkeydown="if(event.key==='Enter'){ event.preventDefault(); Tasks.addSubtask(Tasks._editId); }">
+            <button class="btn btn-ghost btn-sm"
+                    onclick="Tasks.addSubtask(Tasks._editId)">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="Modal.close('modal-task')">Cancel</button>
+      <button id="task-save-btn" class="btn btn-primary" onclick="Tasks.save()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task detail modal -->
+<div class="modal-bg" id="modal-detail">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="detail-title"></h3>
+      <button class="modal-close" onclick="Modal.close('modal-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="detail-body"></div>
+  </div>
+</div>
+
+<!-- ── Reschedule Modal ──────────────────────────── -->
+<div class="modal-bg" id="modal-reschedule">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>📅 Reschedule Task</h3>
+      <button class="modal-close" onclick="Modal.close('modal-reschedule')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="rs-task-title" class="text-sm" style="margin-bottom:16px;font-weight:600;color:var(--text-1)"></p>
+      <div class="form-group">
+        <label class="label">New Due Date</label>
+        <input id="rs-new-date" class="input" type="datetime-local">
+      </div>
+      <div id="rs-tag-section" class="hidden" style="margin-top:14px;padding:12px;background:var(--bg-2);border-radius:8px;border:1px solid var(--border)">
+        <p class="text-sm" style="margin-bottom:10px">This task has tags. Do you want to reschedule related tasks too?</p>
+        <div id="rs-tag-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="Modal.close('modal-reschedule')">Cancel</button>
+      <button id="rs-save-btn" class="btn btn-primary" onclick="ProcrastinationTracker.confirmReschedule()">Reschedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── AI Break Down Modal ──────────────────────── -->
+<div class="modal-bg" id="modal-breakdown">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <h3>🤖 AI Break Down Task</h3>
+      <button class="modal-close" onclick="Modal.close('modal-breakdown')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Step 1: config -->
+      <div id="bd-step1">
+        <p id="bd-task-title" class="text-sm" style="font-weight:600;margin-bottom:4px;color:var(--text-1)"></p>
+        <p id="bd-task-meta" class="text-xs text-muted" style="margin-bottom:16px"></p>
+        <div class="procrast-progress-bar" style="margin-bottom:18px">
+          <div class="procrast-progress-track">
+            <div id="bd-progress-fill" class="procrast-progress-fill"></div>
+          </div>
+          <p id="bd-progress-label" class="text-xs text-muted" style="margin-top:4px"></p>
+        </div>
+        <div class="form-group">
+          <label class="label">Spread remaining work across how many days?</label>
+          <input id="bd-days" class="input" type="number" min="1" max="90" placeholder="e.g. 7">
+          <p class="text-xs text-muted" style="margin-top:4px">AI will generate a plan for only the remaining work — days already completed won't be repeated.</p>
+        </div>
+        <button id="bd-generate-btn" class="btn btn-primary" style="width:100%;margin-top:8px"
+                onclick="ProcrastinationTracker.generateBreakdown()">✨ Generate Recovery Plan</button>
+      </div>
+      <!-- Step 2: preview plan -->
+      <div id="bd-step2" class="hidden">
+        <p class="text-xs text-muted" style="margin-bottom:12px">Review and edit before saving. Completed subtasks were skipped.</p>
+        <div id="bd-plan-cards"></div>
+      </div>
+    </div>
+    <div class="modal-foot" id="bd-footer">
+      <button class="btn btn-ghost" onclick="ProcrastinationTracker.bdBack()">← Back</button>
+      <button id="bd-save-btn" class="btn btn-primary hidden" onclick="ProcrastinationTracker.saveBreakdown()">💾 Save Recovery Plan</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/push.js"></script>
+<script src="/js/pages.js"></script>
+
+</body>
+</html>
