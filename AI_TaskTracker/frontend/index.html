@@ -184,6 +184,10 @@
         <a class="nav-link" data-route="planner" href="#planner">
           <span class="nav-icon">🚀</span> AI Planner
         </a>
+        <a class="nav-link" data-route="procrastination" href="#procrastination">
+          <span class="nav-icon">⏰</span> Catch Up
+          <span class="nav-badge hidden" id="nav-procrast-badge">0</span>
+        </a>
         <a class="nav-link" data-route="settings" href="#settings">
           <span class="nav-icon">⚙</span> Settings
         </a>
@@ -418,6 +422,25 @@
       </div><!-- /page-planner -->
 
       <!-- ════════════════════════════════
+           PROCRASTINATION TRACKER PAGE
+      ════════════════════════════════ -->
+      <div class="page" id="page-procrastination">
+        <div class="page-header">
+          <div>
+            <h2 class="page-title">⏰ Catch Up</h2>
+            <p class="page-subtitle">Overdue &amp; stalled tasks — take action now</p>
+          </div>
+        </div>
+        <div id="procrast-list">
+          <div class="empty">
+            <div class="empty-icon">🎉</div>
+            <div class="empty-title">You're all caught up!</div>
+            <div class="empty-desc">No overdue or stalled tasks found.</div>
+          </div>
+        </div>
+      </div><!-- /page-procrastination -->
+
+      <!-- ════════════════════════════════
            SETTINGS PAGE
       ════════════════════════════════ -->
       <div class="page" id="page-settings">
@@ -491,8 +514,6 @@
                         onclick="PushManager.subscribe()">🔔 Enable Notifications</button>
                 <button id="push-unsubscribe-btn" class="btn btn-secondary hidden"
                         onclick="PushManager.unsubscribe()">Disable</button>
-                <button id="push-test-btn" class="btn btn-ghost hidden"
-                        onclick="PushManager.sendTest()">Send Test</button>
               </div>
               <p class="text-xs text-muted" style="margin-top:10px">
                 ⚠ Requires VAPID keys — run <code>python scripts/generate_vapid.py</code> then add to .env
@@ -609,6 +630,70 @@
       <button class="modal-close" onclick="Modal.close('modal-detail')">✕</button>
     </div>
     <div class="modal-body" id="detail-body"></div>
+  </div>
+</div>
+
+<!-- ── Reschedule Modal ──────────────────────────── -->
+<div class="modal-bg" id="modal-reschedule">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>📅 Reschedule Task</h3>
+      <button class="modal-close" onclick="Modal.close('modal-reschedule')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="rs-task-title" class="text-sm" style="margin-bottom:16px;font-weight:600;color:var(--text-1)"></p>
+      <div class="form-group">
+        <label class="label">New Due Date</label>
+        <input id="rs-new-date" class="input" type="datetime-local">
+      </div>
+      <div id="rs-tag-section" class="hidden" style="margin-top:14px;padding:12px;background:var(--bg-2);border-radius:8px;border:1px solid var(--border)">
+        <p class="text-sm" style="margin-bottom:10px">This task has tags. Do you want to reschedule related tasks too?</p>
+        <div id="rs-tag-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="Modal.close('modal-reschedule')">Cancel</button>
+      <button id="rs-save-btn" class="btn btn-primary" onclick="ProcrastinationTracker.confirmReschedule()">Reschedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── AI Break Down Modal ──────────────────────── -->
+<div class="modal-bg" id="modal-breakdown">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <h3>🤖 AI Break Down Task</h3>
+      <button class="modal-close" onclick="Modal.close('modal-breakdown')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Step 1: config -->
+      <div id="bd-step1">
+        <p id="bd-task-title" class="text-sm" style="font-weight:600;margin-bottom:4px;color:var(--text-1)"></p>
+        <p id="bd-task-meta" class="text-xs text-muted" style="margin-bottom:16px"></p>
+        <div class="procrast-progress-bar" style="margin-bottom:18px">
+          <div class="procrast-progress-track">
+            <div id="bd-progress-fill" class="procrast-progress-fill"></div>
+          </div>
+          <p id="bd-progress-label" class="text-xs text-muted" style="margin-top:4px"></p>
+        </div>
+        <div class="form-group">
+          <label class="label">Spread remaining work across how many days?</label>
+          <input id="bd-days" class="input" type="number" min="1" max="90" placeholder="e.g. 7">
+          <p class="text-xs text-muted" style="margin-top:4px">AI will generate a plan for only the remaining work — days already completed won't be repeated.</p>
+        </div>
+        <button id="bd-generate-btn" class="btn btn-primary" style="width:100%;margin-top:8px"
+                onclick="ProcrastinationTracker.generateBreakdown()">✨ Generate Recovery Plan</button>
+      </div>
+      <!-- Step 2: preview plan -->
+      <div id="bd-step2" class="hidden">
+        <p class="text-xs text-muted" style="margin-bottom:12px">Review and edit before saving. Completed subtasks were skipped.</p>
+        <div id="bd-plan-cards"></div>
+      </div>
+    </div>
+    <div class="modal-foot" id="bd-footer">
+      <button class="btn btn-ghost" onclick="ProcrastinationTracker.bdBack()">← Back</button>
+      <button id="bd-save-btn" class="btn btn-primary hidden" onclick="ProcrastinationTracker.saveBreakdown()">💾 Save Recovery Plan</button>
+    </div>
   </div>
 </div>
 

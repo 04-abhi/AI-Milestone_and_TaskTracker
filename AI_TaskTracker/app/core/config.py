@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     VAPID_PUBLIC_KEY: str = ""
     VAPID_CLAIMS_EMAIL: str = "admin@ait.com"
 
+    # Groq AI (https://console.groq.com)
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_API_BASE: str = "https://api.groq.com/openai/v1"
+
     @property
     def is_dev(self) -> bool:
         return self.APP_ENV == "development"

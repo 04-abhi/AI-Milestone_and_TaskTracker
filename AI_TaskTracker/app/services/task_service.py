@@ -180,3 +180,116 @@ async def get_due_soon_tasks(db: AsyncSession) -> List[Task]:
 async def mark_reminder_sent(db: AsyncSession, task: Task) -> None:
     task.reminder_sent = True
     await db.flush()
+
+
+# ── Procrastination ────────────────────────────────────────
+
+def compute_procrastination_score(task: Task) -> int:
+    """
+    Score 0–3:
+      1 = overdue only
+      2 = overdue + stale (no update in 3+ days) OR extended deadline once
+      3 = all of the above / extended 2+ times
+    """
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    score = 0
+
+    if task.status in (TaskStatus.DONE,) or task.is_archived:
+        return 0
+
+    # Overdue check
+    if task.due_date and task.due_date < now:
+        score += 1
+
+    # Stale check: updated_at hasn't changed in 3+ days and still not done
+    stale_threshold = now - timedelta(days=3)
+    if task.updated_at and task.updated_at.replace(tzinfo=timezone.utc) < stale_threshold:
+        score += 1
+
+    # Deadline extended multiple times
+    if task.deadline_extended_count and task.deadline_extended_count >= 2:
+        score += 1
+
+    return min(score, 3)
+
+
+async def get_procrastinated_tasks(
+    db: AsyncSession, user_id: int
+) -> List[Task]:
+    tasks = (
+        await db.scalars(
+            select(Task).where(
+                Task.user_id == user_id,
+                Task.status != TaskStatus.DONE,
+                Task.is_archived == False,
+            )
+        )
+    ).all()
+
+    scored = []
+    for task in tasks:
+        score = compute_procrastination_score(task)
+        if score > 0:
+            task.__dict__["procrastination_score"] = score
+            subs = await get_subtasks(db, task.id)
+            task.__dict__["subtasks"] = subs
+            scored.append(task)
+
+    scored.sort(key=lambda t: t.__dict__.get("procrastination_score", 0), reverse=True)
+    return scored
+
+
+async def reschedule_task(
+    db: AsyncSession, task: Task, new_due_date
+) -> Task:
+    # preserve original due date on first extension
+    if not task.original_due_date and task.due_date:
+        task.original_due_date = task.due_date
+    task.due_date = new_due_date
+    task.deadline_extended_count = (task.deadline_extended_count or 0) + 1
+    task.procrastination_notified = False   # reset so it can be flagged again
+    await db.flush()
+    await db.refresh(task)
+    return task
+
+
+async def reschedule_by_tag(
+    db: AsyncSession, user_id: int, tag: str, new_due_date
+) -> List[Task]:
+    tasks = (
+        await db.scalars(
+            select(Task).where(
+                Task.user_id == user_id,
+                Task.tags.ilike(f"%{tag}%"),
+                Task.status != TaskStatus.DONE,
+                Task.is_archived == False,
+            )
+        )
+    ).all()
+    result = []
+    for task in tasks:
+        updated = await reschedule_task(db, task, new_due_date)
+        updated.__dict__["subtasks"] = await get_subtasks(db, task.id)
+        result.append(updated)
+    return result
+
+
+async def get_overdue_unnotified_tasks(db: AsyncSession) -> List[Task]:
+    now = datetime.now(timezone.utc)
+    tasks = (
+        await db.scalars(
+            select(Task).where(
+                Task.due_date < now,
+                Task.status != TaskStatus.DONE,
+                Task.is_archived == False,
+                Task.procrastination_notified == False,
+            )
+        )
+    ).all()
+    return list(tasks)
+
+
+async def mark_procrastination_notified(db: AsyncSession, task: Task) -> None:
+    task.procrastination_notified = True
+    await db.flush()

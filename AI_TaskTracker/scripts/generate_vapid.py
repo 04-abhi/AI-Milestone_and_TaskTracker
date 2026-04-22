@@ -1,40 +1,45 @@
-"""
-VAPID Key Generator
---------------------
-Run this ONCE to generate your Web Push notification keys.
-Then paste the output into your .env file.
+import os
+from pywebpush import webpush
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization
 
-Usage:
-    python scripts/generate_vapid.py
-"""
-import sys
-import base64
+ENV_FILE = ".env"
 
-try:
-    from pywebpush import Vapid
-except ImportError:
-    print("ERROR: pywebpush not installed. Run: pip install pywebpush")
-    sys.exit(1)
 
-v = Vapid()
-v.generate_keys()
+def generate_vapid_keys():
+    private_key = ec.generate_private_key(ec.SECP256R1())
 
-# Export private key as PEM string (single line for .env)
-private_pem = v.private_pem().decode("utf-8").strip()
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    ).decode()
 
-# Export public key as URL-safe base64 (what browsers need)
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-public_bytes = v.public_key.public_bytes(
-    encoding=Encoding.X962,
-    format=PublicFormat.UncompressedPoint,
-)
-public_b64 = base64.urlsafe_b64encode(public_bytes).rstrip(b"=").decode("utf-8")
+    public_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode()
 
-print("\n✅  VAPID Keys Generated!")
-print("=" * 60)
-print("Copy these two lines into your .env file:\n")
-print(f'VAPID_PRIVATE_KEY="{private_pem}"')
-print(f"VAPID_PUBLIC_KEY={public_b64}")
-print("\n" + "=" * 60)
-print("⚠   Keep VAPID_PRIVATE_KEY secret. Never commit it to git.")
-print("    The PUBLIC key is safe to share — the browser uses it.\n")
+    return public_pem, private_pem
+
+
+def ensure_vapid_keys():
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    public = os.getenv("VAPID_PUBLIC_KEY")
+    private = os.getenv("VAPID_PRIVATE_KEY")
+
+    if public and private:
+        print("VAPID keys already exist.")
+        return
+
+    print("Generating VAPID keys...")
+
+    public_key, private_key = generate_vapid_keys()
+
+    with open(ENV_FILE, "a") as f:
+        f.write(f"\nVAPID_PUBLIC_KEY={repr(public_key)}\n")
+        f.write(f"VAPID_PRIVATE_KEY={repr(private_key)}\n")
+
+    print("VAPID keys generated and saved.")

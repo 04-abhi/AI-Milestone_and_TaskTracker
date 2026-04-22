@@ -46,11 +46,9 @@ const PushManager = {
     if (this.isSubscribed()) {
       subBtn?.classList.add('hidden');
       unsubBtn?.classList.remove('hidden');
-      testBtn?.classList.remove('hidden');
     } else {
       subBtn?.classList.remove('hidden');
       unsubBtn?.classList.add('hidden');
-      testBtn?.classList.add('hidden');
     }
   },
 
@@ -101,8 +99,6 @@ const PushManager = {
       const rawKey  = this._sub.getKey('p256dh');
       const rawAuth = this._sub.getKey('auth');
 
-      // FIX: use POST /unsubscribe instead of DELETE /subscribe
-      // DELETE with a body is dropped by many HTTP clients → 422 error
       await API.push.unsubscribe({
         endpoint: this._sub.endpoint,
         p256dh:   btoa(String.fromCharCode(...new Uint8Array(rawKey))),
@@ -115,15 +111,6 @@ const PushManager = {
       this._updateUI();
     } catch (e) {
       Toast.error('Failed to disable: ' + e.message);
-    }
-  },
-
-  async sendTest() {
-    try {
-      const res = await API.push.test();
-      Toast.success(res.message || 'Test notification sent!');
-    } catch (e) {
-      Toast.error(e.message);
     }
   },
 

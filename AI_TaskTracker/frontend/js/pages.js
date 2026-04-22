@@ -795,29 +795,8 @@ IMPORTANT:
         document.getElementById('mp-preview').classList.remove('hidden');
         document.getElementById('mp-day-cards').innerHTML = this._skeleton(Math.min(days, 5));
 
-        const res = await fetch('http://localhost:11434/api/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'gpt-oss:20b',
-            prompt: prompt,
-            stream: false,
-          }),
-        });
-
-        if (!res.ok) throw new Error(`Ollama error ${res.status}: ${await res.text()}`);
-
-        const data = await res.json();
-        const raw  = (data.response || '').trim();
-
-        let plan;
-        try {
-          // Strip possible markdown fences just in case
-          const clean = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-          plan = JSON.parse(clean);
-        } catch {
-          throw new Error('AI returned invalid JSON. Try again or simplify your description.');
-        }
+        // Call backend — backend calls Grok API
+        const plan = await API.ai.plan({ title, description: desc, days });
 
         if (!plan.plan || !Array.isArray(plan.plan)) {
           throw new Error('Unexpected plan format from AI. Please try again.');
@@ -986,3 +965,481 @@ document.addEventListener('DOMContentLoaded', () => {
 
   Router.init();
 });
+
+// ════════════════════════════════════════════════════════
+// PROCRASTINATION TRACKER
+// ════════════════════════════════════════════════════════
+const ProcrastinationTracker = {
+  _tasks:      [],   // current overdue list
+  _rsTask:     null, // task being rescheduled
+  _rsTagChoice: null, // tag user chose to bulk-reschedule
+  _bdTask:     null, // task being broken down
+  _bdPlan:     null, // generated breakdown plan
+
+  // ── Page render ────────────────────────────────────────
+  async render() {
+    showPage('page-procrastination');
+    await this._load();
+  },
+
+  async _load() {
+    const el = document.getElementById('procrast-list');
+    el.innerHTML = `
+      <div class="card" style="padding:14px 18px;margin-bottom:10px">
+        <div class="skel" style="height:13px;width:50%;margin-bottom:8px"></div>
+        <div class="skel" style="height:10px;width:70%"></div>
+      </div>`.repeat(3);
+
+    try {
+      const tasks = await API.tasks.procrastinated();
+      this._tasks = tasks || [];
+      this._renderList();
+      this._updateBadge(this._tasks.length);
+    } catch (e) {
+      el.innerHTML = `<div class="empty"><div class="empty-title">Error loading tasks</div>
+        <div class="empty-desc">${esc(e.message)}</div></div>`;
+    }
+  },
+
+  _renderList() {
+    const el = document.getElementById('procrast-list');
+    if (!this._tasks.length) {
+      el.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">🎉</div>
+          <div class="empty-title">You're all caught up!</div>
+          <div class="empty-desc">No overdue or stalled tasks found.</div>
+        </div>`;
+      return;
+    }
+    el.innerHTML = this._tasks.map(t => this._taskCard(t)).join('');
+  },
+
+  _taskCard(t) {
+    const score     = t.procrastination_score || 1;
+    const scoreLabel = score >= 3 ? '🔴 Critical' : score === 2 ? '🟠 Stalled' : '🟡 Overdue';
+    const overdueBy = t.due_date ? this._overdueText(t.due_date) : 'No due date';
+    const subTotal  = (t.subtasks || []).length;
+    const subDone   = (t.subtasks || []).filter(s => s.is_done).length;
+    const progress  = subTotal ? Math.round((subDone / subTotal) * 100) : 0;
+    const extCount  = t.deadline_extended_count || 0;
+
+    return `
+    <div class="card procrast-card" id="pc-${t.id}">
+      <div class="procrast-card-header">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span class="procrast-score-badge score-${score}">${scoreLabel}</span>
+            ${extCount > 0 ? `<span class="badge" style="font-size:0.68rem;opacity:.8">🔁 Rescheduled ${extCount}×</span>` : ''}
+          </div>
+          <div class="procrast-task-title">${esc(t.title)}</div>
+          <div class="procrast-task-meta">
+            <span class="badge badge-${t.priority}">${t.priority}</span>
+            <span style="color:var(--red);font-size:0.78rem">📅 ${overdueBy}</span>
+            ${t.tags ? t.tags.split(',').map(tg => `<span class="tag-chip">${esc(tg.trim())}</span>`).join('') : ''}
+          </div>
+        </div>
+      </div>
+
+      ${subTotal ? `
+      <div class="procrast-progress-bar">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span class="text-xs text-muted">Subtask progress</span>
+          <span class="text-xs text-muted">${subDone}/${subTotal} done (${progress}%)</span>
+        </div>
+        <div class="procrast-progress-track">
+          <div class="procrast-progress-fill" style="width:${progress}%"></div>
+        </div>
+      </div>` : ''}
+
+      <div class="procrast-actions">
+        <button class="btn btn-ghost btn-sm" onclick="ProcrastinationTracker.openReschedule(${t.id})">
+          📅 Reschedule
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="ProcrastinationTracker.openBreakdown(${t.id})">
+          🤖 Break Down
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="Tasks.quickComplete(${t.id}, '${t.status}').then(()=>ProcrastinationTracker._load())">
+          ✅ Mark Done
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="ProcrastinationTracker.deleteTask(${t.id})">
+          🗑 Delete
+        </button>
+      </div>
+    </div>`;
+  },
+
+  _overdueText(dueDateStr) {
+    const due  = new Date(dueDateStr);
+    const now  = new Date();
+    const diff = Math.floor((now - due) / 86400000);
+    if (diff <= 0) return 'Due today';
+    if (diff === 1) return 'Overdue by 1 day';
+    return `Overdue by ${diff} days`;
+  },
+
+  _updateBadge(count) {
+    const badge = document.getElementById('nav-procrast-badge');
+    if (!badge) return;
+    if (count > 0) {
+      badge.textContent = count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  },
+
+  // ── Silent background check (called after login / task save) ───
+  async silentCheck() {
+    try {
+      const tasks = await API.tasks.procrastinated();
+      this._updateBadge((tasks || []).length);
+    } catch { /* ignore — don't interrupt the user */ }
+  },
+
+  // ── Delete ─────────────────────────────────────────────
+  async deleteTask(id) {
+    if (!confirm('Permanently delete this task and all its subtasks?')) return;
+    try {
+      await API.tasks.delete(id);
+      Toast.success('Task deleted');
+      this._tasks = this._tasks.filter(t => t.id !== id);
+      this._renderList();
+      this._updateBadge(this._tasks.length);
+    } catch (e) { Toast.error(e.message); }
+  },
+
+  // ── Reschedule flow ────────────────────────────────────
+  openReschedule(id) {
+    const task = this._tasks.find(t => t.id === id);
+    if (!task) return;
+    this._rsTask     = task;
+    this._rsTagChoice = null;
+
+    document.getElementById('rs-task-title').textContent = task.title;
+
+    // Default new date = tomorrow 9 AM
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    document.getElementById('rs-new-date').value = toLocalDTInput(tomorrow);
+
+    // Show tag options if task has tags
+    const tagSection = document.getElementById('rs-tag-section');
+    const tagChips   = document.getElementById('rs-tag-chips');
+    const tags = task.tags ? task.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+    if (tags.length) {
+      tagSection.classList.remove('hidden');
+      tagChips.innerHTML = `
+        <label class="procrast-tag-radio">
+          <input type="radio" name="rs-tag" value="" checked>
+          <span>Only this task</span>
+        </label>
+        ${tags.map(tag => `
+        <label class="procrast-tag-radio">
+          <input type="radio" name="rs-tag" value="${esc(tag)}">
+          <span>All <strong>${esc(tag)}</strong> tasks</span>
+        </label>`).join('')}`;
+    } else {
+      tagSection.classList.add('hidden');
+    }
+
+    Modal.open('modal-reschedule');
+  },
+
+  async confirmReschedule() {
+    const btn      = document.getElementById('rs-save-btn');
+    const task     = this._rsTask;
+    if (!task) return;
+
+    const newDateVal = document.getElementById('rs-new-date').value;
+    if (!newDateVal) { Toast.warning('Please pick a new date'); return; }
+
+    const newDate  = new Date(newDateVal).toISOString();
+    const tagRadio = document.querySelector('input[name="rs-tag"]:checked');
+    const applyTag = tagRadio ? tagRadio.value : null;
+
+    await withBtn(btn, async () => {
+      try {
+        const updated = await API.tasks.reschedule(task.id, {
+          new_due_date: newDate,
+          apply_to_tag: applyTag || null,
+        });
+
+        const count = updated.length;
+        Toast.success(applyTag
+          ? `📅 ${count} task${count > 1 ? 's' : ''} with tag "${applyTag}" rescheduled`
+          : '📅 Task rescheduled');
+
+        Modal.close('modal-reschedule');
+        await this._load();
+      } catch (e) { Toast.error(e.message); }
+    });
+  },
+
+  // ── AI Break Down flow ─────────────────────────────────
+  openBreakdown(id) {
+    const task = this._tasks.find(t => t.id === id);
+    if (!task) return;
+    this._bdTask = task;
+    this._bdPlan = null;
+
+    // Show step 1
+    document.getElementById('bd-step1').classList.remove('hidden');
+    document.getElementById('bd-step2').classList.add('hidden');
+    document.getElementById('bd-save-btn').classList.add('hidden');
+
+    document.getElementById('bd-task-title').textContent = task.title;
+
+    const subTotal = (task.subtasks || []).length;
+    const subDone  = (task.subtasks || []).filter(s => s.is_done).length;
+    const overdueBy = task.due_date ? this._overdueText(task.due_date) : '';
+
+    document.getElementById('bd-task-meta').textContent =
+      `${overdueBy}${subTotal ? ` · ${subDone}/${subTotal} subtasks done` : ''}`;
+
+    // Progress bar
+    const pct = subTotal ? Math.round((subDone / subTotal) * 100) : 0;
+    document.getElementById('bd-progress-fill').style.width = subTotal ? `${pct}%` : '0%';
+    document.getElementById('bd-progress-label').textContent = subTotal
+      ? `${pct}% of subtasks already done — AI will plan only the remaining work`
+      : 'No subtasks tracked yet — AI will plan from scratch';
+
+    // Default days = days overdue + 3 (recovery buffer)
+    const daysOverdue = task.due_date
+      ? Math.max(0, Math.floor((new Date() - new Date(task.due_date)) / 86400000))
+      : 0;
+    document.getElementById('bd-days').value = Math.max(3, daysOverdue + 3);
+
+    Modal.open('modal-breakdown');
+  },
+
+  async generateBreakdown() {
+    const btn  = document.getElementById('bd-generate-btn');
+    const task = this._bdTask;
+    const days = parseInt(document.getElementById('bd-days').value, 10);
+    if (!days || days < 1) { Toast.warning('Enter number of recovery days'); return; }
+
+    // Figure out already-done subtasks so AI skips them
+    const subTotal = (task.subtasks || []).length;
+    const doneSubs = (task.subtasks || []).filter(s => s.is_done).map(s => s.title);
+    const pendSubs = (task.subtasks || []).filter(s => !s.is_done).map(s => s.title);
+    const progressNote = doneSubs.length
+      ? `Already completed subtasks (DO NOT include in plan): ${doneSubs.join(', ')}.
+Remaining subtasks to cover: ${pendSubs.length ? pendSubs.join(', ') : 'none explicitly listed — infer from context'}.`
+      : 'No subtasks tracked yet.';
+
+    const prompt = `You are a task recovery planner.
+
+Original Task: ${task.title}
+Description: ${task.description || 'Not provided'}
+Original Due Date: ${task.due_date ? new Date(task.due_date).toDateString() : 'not set'}
+Days overdue: ${Math.max(0, Math.floor((new Date() - new Date(task.due_date || new Date())) / 86400000))}
+Recovery window: ${days} days from today
+
+Subtask Progress:
+${progressNote}
+
+The user procrastinated this task. Generate a realistic ${days}-day recovery plan that:
+- SKIPS already completed work
+- Covers only the REMAINING work
+- Is progressive and achievable
+- Considers the original scope but adapts to remaining time
+
+STRICT RULES:
+- Output ONLY valid JSON
+- NO explanation, NO markdown
+- Exactly ${days} day entries
+
+SCHEMA:
+{
+  "title": "",
+  "remaining_summary": "one sentence describing what still needs to be done",
+  "recovery_days": ${days},
+  "plan": [
+    {
+      "day": 1,
+      "task": "",
+      "subtasks": []
+    }
+  ]
+}`;
+
+    await withBtn(btn, async () => {
+      try {
+        document.getElementById('bd-plan-cards').innerHTML =
+          `<div class="card" style="padding:14px 18px;margin-bottom:10px">
+             <div class="skel" style="height:12px;width:40%;margin-bottom:8px"></div>
+             <div class="skel" style="height:10px;width:65%;margin-bottom:6px"></div>
+             <div class="skel" style="height:10px;width:55%"></div>
+           </div>`.repeat(Math.min(days, 4));
+
+        document.getElementById('bd-step1').classList.add('hidden');
+        document.getElementById('bd-step2').classList.remove('hidden');
+
+        // Call backend — backend calls Grok API
+        const plan = await API.ai.breakdown({
+          title: task.title,
+          description: task.description || '',
+          due_date: task.due_date || '',
+          recovery_days: days,
+          done_subtasks: (task.subtasks || []).filter(s => s.is_done).map(s => s.title),
+          pending_subtasks: (task.subtasks || []).filter(s => !s.is_done).map(s => s.title),
+        });
+
+        if (!plan.plan || !Array.isArray(plan.plan)) throw new Error('Unexpected plan format');
+
+        this._bdPlan = plan;
+        this._renderBdPlan(plan);
+        document.getElementById('bd-save-btn').classList.remove('hidden');
+        Toast.success('Recovery plan ready! Review and save.');
+      } catch (e) {
+        document.getElementById('bd-step1').classList.remove('hidden');
+        document.getElementById('bd-step2').classList.add('hidden');
+        Toast.error('Generation failed: ' + e.message);
+      }
+    });
+  },
+
+  _renderBdPlan(plan) {
+    const container = document.getElementById('bd-plan-cards');
+    if (plan.remaining_summary) {
+      container.innerHTML = `
+        <div style="padding:10px 14px;background:var(--bg-2);border-radius:8px;border-left:3px solid var(--accent);margin-bottom:14px">
+          <p class="text-xs text-muted" style="margin-bottom:2px">Remaining scope</p>
+          <p class="text-sm">${esc(plan.remaining_summary)}</p>
+        </div>`;
+    } else {
+      container.innerHTML = '';
+    }
+    container.innerHTML += plan.plan.map((entry, idx) => this._bdDayCard(entry, idx)).join('');
+  },
+
+  _bdDayCard(entry, idx) {
+    const subsHtml = (entry.subtasks || []).map((s, si) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:0.72rem;color:var(--text-3);min-width:18px">${si+1}.</span>
+        <input type="text" class="input bd-sub-input" style="flex:1;padding:3px 6px;font-size:0.8rem"
+               value="${esc(s)}" data-day="${idx}" data-si="${si}">
+        <button class="btn btn-ghost btn-sm" style="padding:2px 5px;font-size:0.68rem"
+                onclick="ProcrastinationTracker._bdRemoveSub(${idx},${si})">✕</button>
+      </div>`).join('');
+
+    return `
+    <div class="card card-p mp-day-card bd-day-card" id="bd-day-${idx}" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span class="badge badge-medium" style="min-width:54px;text-align:center;font-size:0.68rem">Day ${entry.day}</span>
+        <input type="text" class="input mp-task-input bd-task-input" style="flex:1;font-weight:600"
+               value="${esc(entry.task)}" data-day="${idx}">
+      </div>
+      <div id="bd-subs-${idx}">${subsHtml}</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;font-size:0.75rem"
+              onclick="ProcrastinationTracker._bdAddSub(${idx})">+ Add subtask</button>
+    </div>`;
+  },
+
+  _bdRemoveSub(dayIdx, subIdx) {
+    if (!this._bdPlan) return;
+    this._bdPlan.plan[dayIdx].subtasks.splice(subIdx, 1);
+    const card = document.getElementById(`bd-day-${dayIdx}`);
+    if (card) card.outerHTML = this._bdDayCard(this._bdPlan.plan[dayIdx], dayIdx);
+  },
+
+  _bdAddSub(dayIdx) {
+    if (!this._bdPlan) return;
+    this._bdPlan.plan[dayIdx].subtasks.push('New subtask');
+    const card = document.getElementById(`bd-day-${dayIdx}`);
+    if (card) card.outerHTML = this._bdDayCard(this._bdPlan.plan[dayIdx], dayIdx);
+  },
+
+  bdBack() {
+    if (this._bdPlan) {
+      // Already generated — go back to step1 to re-config
+      document.getElementById('bd-step1').classList.remove('hidden');
+      document.getElementById('bd-step2').classList.add('hidden');
+      document.getElementById('bd-save-btn').classList.add('hidden');
+      this._bdPlan = null;
+    } else {
+      Modal.close('modal-breakdown');
+    }
+  },
+
+  _bdCollectEdits() {
+    if (!this._bdPlan) return;
+    this._bdPlan.plan.forEach((entry, idx) => {
+      const tEl = document.querySelector(`.bd-task-input[data-day="${idx}"]`);
+      if (tEl) entry.task = tEl.value.trim();
+      const sEls = document.querySelectorAll(`.bd-sub-input[data-day="${idx}"]`);
+      entry.subtasks = Array.from(sEls).map(e => e.value.trim()).filter(Boolean);
+    });
+  },
+
+  async saveBreakdown() {
+    if (!this._bdPlan || !this._bdTask) return;
+    this._bdCollectEdits();
+    const btn  = document.getElementById('bd-save-btn');
+    const plan = this._bdPlan;
+    const task = this._bdTask;
+    const today = new Date();
+    today.setHours(9, 0, 0, 0);
+
+    let saved = 0;
+
+    await withBtn(btn, async () => {
+      try {
+        // Update original task — mark as in_progress, extend due to last day of plan
+        const lastDue = new Date(today);
+        lastDue.setDate(today.getDate() + plan.plan.length - 1);
+        await API.tasks.reschedule(task.id, { new_due_date: lastDue.toISOString() });
+        await API.tasks.update(task.id, { status: 'in_progress' });
+
+        // Create a child task per day
+        for (const entry of plan.plan) {
+          const due = new Date(today);
+          due.setDate(today.getDate() + (entry.day - 1));
+
+          const newTask = await API.tasks.create({
+            title:       `Day ${entry.day} – ${entry.task}`,
+            description: `Recovery plan for: "${task.title}"`,
+            priority:    task.priority || 'medium',
+            status:      'todo',
+            due_date:    due.toISOString(),
+            tags:        [task.tags, 'recovery'].filter(Boolean).join(','),
+          });
+
+          for (const sub of (entry.subtasks || [])) {
+            if (sub.trim()) await API.subtasks.create(newTask.id, { title: sub.trim() });
+          }
+          saved++;
+        }
+
+        Toast.success(`✅ ${saved} recovery tasks saved!`);
+        Modal.close('modal-breakdown');
+        await this._load();
+      } catch (e) { Toast.error('Save failed: ' + e.message); }
+    });
+  },
+};
+
+// Patch afterLogin to run silent procrastination check
+const _origAfterLogin = afterLogin;
+function afterLogin(isNewUser = false) {
+  _origAfterLogin(isNewUser);
+  setTimeout(() => ProcrastinationTracker.silentCheck(), 2000);
+}
+
+// Patch Tasks.save to refresh badge after any task change
+const _origTasksSave = Tasks.save.bind(Tasks);
+Tasks.save = async function() {
+  await _origTasksSave();
+  ProcrastinationTracker.silentCheck();
+};
+
+Router.register('procrastination', () => ProcrastinationTracker.render());
+
+// ── Helper: convert Date to datetime-local input value ──
+function toLocalDTInput(date) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}

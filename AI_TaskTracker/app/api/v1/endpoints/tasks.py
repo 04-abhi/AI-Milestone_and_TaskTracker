@@ -10,11 +10,13 @@ from app.models.user import User
 from app.schemas.task import (
     TaskCreate, TaskListOut, TaskOut, TaskUpdate,
     SubtaskCreate, SubtaskUpdate, SubtaskOut,
+    RescheduleRequest,
 )
 from app.services.task_service import (
     create_task, delete_task, get_task, list_tasks, update_task,
     archive_task, get_subtasks, create_subtask, get_subtask,
     update_subtask, delete_subtask,
+    get_procrastinated_tasks, reschedule_task, reschedule_by_tag,
 )
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
@@ -113,6 +115,43 @@ async def delete_one(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     await delete_task(db, task)
+
+
+# ── Procrastination ────────────────────────────────────────
+
+@router.get("/procrastinated", response_model=list[TaskOut])
+async def list_procrastinated(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns all overdue/stale tasks sorted by procrastination score."""
+    return await get_procrastinated_tasks(db, current_user.id)
+
+
+@router.post("/{task_id}/reschedule", response_model=list[TaskOut])
+async def reschedule_one_or_tag(
+    task_id: int,
+    data: RescheduleRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Reschedule a task. If apply_to_tag is set, reschedules ALL tasks
+    with that tag for the current user.
+    """
+    task = await get_task(db, task_id, current_user.id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if data.apply_to_tag:
+        result = await reschedule_by_tag(db, current_user.id, data.apply_to_tag, data.new_due_date)
+    else:
+        updated = await reschedule_task(db, task, data.new_due_date)
+        updated.__dict__["subtasks"] = await get_subtasks(db, task_id)
+        result = [updated]
+
+    await db.commit()
+    return result
 
 
 # ── Subtasks ───────────────────────────────────────────────

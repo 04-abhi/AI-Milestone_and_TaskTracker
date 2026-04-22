@@ -10,6 +10,14 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.db.session import init_db
+from scripts.generate_vapid import ensure_vapid_keys
+
+app = FastAPI()
+
+
+@app.on_event("startup")
+def startup():
+    ensure_vapid_keys()
 
 
 @asynccontextmanager

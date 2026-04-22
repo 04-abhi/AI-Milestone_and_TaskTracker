@@ -100,12 +100,14 @@ const API = (() => {
 
   // ── Tasks ─────────────────────────────────────────────────
   const tasks = {
-    list:    p      => getQ('/tasks', p || {}),
-    get:     id     => get(`/tasks/${id}`),
-    create:  d      => post('/tasks', d),
-    update:  (id,d) => patch(`/tasks/${id}`, d),
-    archive: id     => post(`/tasks/${id}/archive`, {}),
-    delete:  id     => del(`/tasks/${id}`),
+    list:           p      => getQ('/tasks', p || {}),
+    get:            id     => get(`/tasks/${id}`),
+    create:         d      => post('/tasks', d),
+    update:         (id,d) => patch(`/tasks/${id}`, d),
+    archive:        id     => post(`/tasks/${id}/archive`, {}),
+    delete:         id     => del(`/tasks/${id}`),
+    procrastinated: ()     => get('/tasks/procrastinated'),
+    reschedule:     (id,d) => post(`/tasks/${id}/reschedule`, d),
   };
 
   // ── Subtasks ──────────────────────────────────────────────
@@ -124,7 +126,13 @@ const API = (() => {
     test:        () => post('/push/test', {}),
   };
 
-  return { tokens, auth, users, tasks, subtasks, push };
+  // ── AI ────────────────────────────────────────────────────
+  const ai = {
+    plan:      d => post('/ai/plan',      d),
+    breakdown: d => post('/ai/breakdown', d),
+  };
+
+  return { tokens, auth, users, tasks, subtasks, push, ai };
 })();
 
 window.API = API;

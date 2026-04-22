@@ -53,6 +53,13 @@ class Task(Base, TimestampMixin):
     # Push reminder tracking
     reminder_sent: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # Procrastination tracking
+    original_due_date: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    deadline_extended_count: Mapped[int] = mapped_column(Integer, default=0)
+    procrastination_notified: Mapped[bool] = mapped_column(Boolean, default=False)
+
     def __repr__(self):
         return f"<Task {self.id}: {self.title}>"
 

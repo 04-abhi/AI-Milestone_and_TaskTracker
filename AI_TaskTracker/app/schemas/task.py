@@ -59,11 +59,19 @@ class TaskOut(BaseModel):
     tags: Optional[str]
     is_archived: bool
     reminder_sent: bool
+    original_due_date: Optional[datetime]
+    deadline_extended_count: int
+    procrastination_notified: bool
     created_at: datetime
     updated_at: datetime
     subtasks: List[SubtaskOut] = []
 
     model_config = {"from_attributes": True}
+
+
+class RescheduleRequest(BaseModel):
+    new_due_date: datetime
+    apply_to_tag: Optional[str] = None   # if set, reschedule ALL tasks with this tag
 
 
 class TaskListOut(BaseModel):
