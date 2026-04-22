@@ -730,6 +730,247 @@ const Settings = {
 Router.register('settings', () => Settings.render());
 
 // ════════════════════════════════════════════════════════
+// AI MILESTONE PLANNER
+// ════════════════════════════════════════════════════════
+const MilestonePlanner = {
+  _plan: null,  // current generated plan
+
+  async render() {
+    showPage('page-planner');
+    this._plan = null;
+    document.getElementById('mp-preview').classList.add('hidden');
+    document.getElementById('mp-title').value = '';
+    document.getElementById('mp-desc').value  = '';
+    document.getElementById('mp-days').value  = '';
+  },
+
+  async generate() {
+    const btn   = document.getElementById('mp-generate-btn');
+    const title = document.getElementById('mp-title').value.trim();
+    const desc  = document.getElementById('mp-desc').value.trim();
+    const days  = parseInt(document.getElementById('mp-days').value, 10);
+
+    if (!title)          { Toast.warning('Please enter a goal title');            return; }
+    if (!days || days < 1) { Toast.warning('Please enter a valid number of days'); return; }
+
+    const prompt = `You are an AI planner generator.
+User Input:
+Title: ${title}
+Description: ${desc || 'Not provided'}
+Deadline: ${days} days
+Your job:
+Generate a day-wise actionable plan so the user can achieve the goal within the deadline.
+STRICT RULES:
+- Output ONLY valid JSON
+- NO explanation text
+- NO markdown
+- FOLLOW schema EXACTLY
+- Generate exactly ${days} entries (1 per day)
+- Each day must have:
+  - "day" number
+  - "task" (short main task)
+  - "subtasks" (2-4 actionable steps)
+SCHEMA:
+{
+  "title": "",
+  "description": "",
+  "deadline_days": 0,
+  "plan": [
+    {
+      "day": 1,
+      "task": "",
+      "subtasks": []
+    }
+  ]
+}
+IMPORTANT:
+- Tasks must be progressive (gradually increasing difficulty)
+- Tasks must be realistic and achievable
+- Adapt based on the goal type (fitness, learning, skill, etc.)
+- Ensure consistency and logical progression`;
+
+    await withBtn(btn, async () => {
+      try {
+        // Show skeleton loader
+        document.getElementById('mp-preview').classList.remove('hidden');
+        document.getElementById('mp-day-cards').innerHTML = this._skeleton(Math.min(days, 5));
+
+        const res = await fetch('http://localhost:11434/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'gpt-oss:20b',
+            prompt: prompt,
+            stream: false,
+          }),
+        });
+
+        if (!res.ok) throw new Error(`Ollama error ${res.status}: ${await res.text()}`);
+
+        const data = await res.json();
+        const raw  = (data.response || '').trim();
+
+        let plan;
+        try {
+          // Strip possible markdown fences just in case
+          const clean = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+          plan = JSON.parse(clean);
+        } catch {
+          throw new Error('AI returned invalid JSON. Try again or simplify your description.');
+        }
+
+        if (!plan.plan || !Array.isArray(plan.plan)) {
+          throw new Error('Unexpected plan format from AI. Please try again.');
+        }
+
+        this._plan = plan;
+        this._renderPreview(plan);
+        Toast.success('Plan generated! Review and save when ready.');
+      } catch (e) {
+        document.getElementById('mp-preview').classList.add('hidden');
+        Toast.error('Generation failed: ' + e.message);
+      }
+    });
+  },
+
+  _skeleton(n) {
+    return Array.from({ length: n }, () => `
+      <div class="card" style="padding:14px 18px;margin-bottom:10px">
+        <div class="skel" style="height:13px;width:30%;margin-bottom:10px"></div>
+        <div class="skel" style="height:11px;width:70%;margin-bottom:6px"></div>
+        <div class="skel" style="height:11px;width:55%;margin-bottom:6px"></div>
+        <div class="skel" style="height:11px;width:62%"></div>
+      </div>`).join('');
+  },
+
+  _renderPreview(plan) {
+    document.getElementById('mp-preview-title').textContent = plan.title || 'Your Plan';
+    document.getElementById('mp-preview-desc').textContent  = plan.description || '';
+    document.getElementById('mp-preview-days').textContent  = plan.deadline_days || plan.plan.length;
+
+    const container = document.getElementById('mp-day-cards');
+    container.innerHTML = plan.plan.map((entry, idx) => this._dayCard(entry, idx)).join('');
+  },
+
+  _dayCard(entry, idx) {
+    const subtasksHtml = (entry.subtasks || []).map((s, si) => `
+      <div class="subtask-item" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:0.75rem;color:var(--text-3);min-width:20px">${si + 1}.</span>
+        <input type="text" class="input mp-sub-input" style="flex:1;padding:4px 8px;font-size:0.82rem"
+               value="${esc(s)}" data-day="${idx}" data-sub="${si}">
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:0.7rem"
+                onclick="MilestonePlanner._removeSub(${idx},${si})">✕</button>
+      </div>`).join('');
+
+    return `
+    <div class="card card-p mp-day-card" id="mp-day-${idx}" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span class="badge badge-medium" style="min-width:54px;text-align:center;font-size:0.7rem">Day ${entry.day}</span>
+        <input type="text" class="input mp-task-input" style="flex:1;font-weight:600"
+               value="${esc(entry.task)}" data-day="${idx}" placeholder="Main task for this day">
+      </div>
+      <div class="mp-subtasks-wrap" id="mp-subs-${idx}">
+        ${subtasksHtml}
+      </div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px;font-size:0.78rem"
+              onclick="MilestonePlanner._addSub(${idx})">+ Add subtask</button>
+    </div>`;
+  },
+
+  _removeSub(dayIdx, subIdx) {
+    const entry = this._plan.plan[dayIdx];
+    if (!entry) return;
+    entry.subtasks.splice(subIdx, 1);
+    document.getElementById(`mp-subs-${dayIdx}`).outerHTML =
+      document.createElement('div').innerHTML; // re-render just subs
+    // Re-render whole card for simplicity
+    const cardEl = document.getElementById(`mp-day-${dayIdx}`);
+    if (cardEl) cardEl.outerHTML = this._dayCard(entry, dayIdx);
+  },
+
+  _addSub(dayIdx) {
+    const entry = this._plan.plan[dayIdx];
+    if (!entry) return;
+    entry.subtasks = entry.subtasks || [];
+    entry.subtasks.push('New subtask');
+    const cardEl = document.getElementById(`mp-day-${dayIdx}`);
+    if (cardEl) cardEl.outerHTML = this._dayCard(entry, dayIdx);
+  },
+
+  _collectEdits() {
+    if (!this._plan) return;
+    this._plan.plan.forEach((entry, idx) => {
+      const taskEl = document.querySelector(`.mp-task-input[data-day="${idx}"]`);
+      if (taskEl) entry.task = taskEl.value.trim();
+      const subEls = document.querySelectorAll(`.mp-sub-input[data-day="${idx}"]`);
+      entry.subtasks = Array.from(subEls).map(el => el.value.trim()).filter(Boolean);
+    });
+  },
+
+  async saveAll() {
+    if (!this._plan) return;
+    this._collectEdits();
+
+    const btn  = document.getElementById('mp-save-btn');
+    const plan = this._plan;
+    const today = new Date();
+    today.setHours(9, 0, 0, 0); // 9 AM default
+
+    let saved = 0;
+    let failed = 0;
+
+    await withBtn(btn, async () => {
+      for (const entry of plan.plan) {
+        try {
+          const due = new Date(today);
+          due.setDate(today.getDate() + (entry.day - 1));
+
+          // Create the parent task
+          const task = await API.tasks.create({
+            title:       `Day ${entry.day} – ${entry.task}`,
+            description: `Part of AI Milestone Plan: "${plan.title}"`,
+            priority:    'medium',
+            status:      'todo',
+            due_date:    due.toISOString(),
+            tags:        'ai-plan,' + (plan.title || 'milestone').toLowerCase().replace(/\s+/g,'-').slice(0,20),
+          });
+
+          // Create subtasks
+          for (const sub of (entry.subtasks || [])) {
+            if (sub.trim()) {
+              await API.subtasks.create(task.id, { title: sub.trim() });
+            }
+          }
+          saved++;
+        } catch {
+          failed++;
+        }
+      }
+
+      if (saved > 0) {
+        Toast.success(`✅ ${saved} task${saved > 1 ? 's' : ''} saved to My Tasks!`);
+        if (failed > 0) Toast.warning(`⚠ ${failed} task${failed > 1 ? 's' : ''} failed to save.`);
+        // Navigate to tasks page
+        setTimeout(() => Router.navigate('#tasks'), 1200);
+      } else {
+        Toast.error('Could not save tasks. Please try again.');
+      }
+    });
+  },
+
+  reset() {
+    this._plan = null;
+    document.getElementById('mp-preview').classList.add('hidden');
+    document.getElementById('mp-day-cards').innerHTML = '';
+    document.getElementById('mp-title').value = '';
+    document.getElementById('mp-desc').value  = '';
+    document.getElementById('mp-days').value  = '';
+  },
+};
+
+Router.register('planner', () => MilestonePlanner.render());
+
+// ════════════════════════════════════════════════════════
 // BOOT — restore session on page reload
 // ════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {

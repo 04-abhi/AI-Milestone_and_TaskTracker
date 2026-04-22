@@ -1218,3 +1218,41 @@ select.input { cursor: pointer; }
   color: var(--text-3);
   font-size: 0.9rem;
 }
+
+/* ══════════════════════════════════════════
+   AI MILESTONE PLANNER
+══════════════════════════════════════════ */
+.mp-day-card {
+  border-left: 3px solid var(--accent);
+  transition: border-color 0.2s;
+}
+
+.mp-day-card:hover {
+  border-left-color: var(--accent-hover, var(--accent));
+}
+
+.mp-task-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 4px 4px;
+  font-size: 0.92rem;
+}
+
+.mp-task-input:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+  background: transparent;
+}
+
+.mp-sub-input {
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 0.82rem;
+}
+
+.mp-sub-input:focus {
+  background: var(--surface-2, var(--bg-2));
+  border-color: var(--accent);
+}
