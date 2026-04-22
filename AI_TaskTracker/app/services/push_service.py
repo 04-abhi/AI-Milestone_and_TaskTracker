@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.push_subscription import PushSubscription
 from app.core.config import settings
+from pywebpush import webpush, WebPushException
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +107,7 @@ async def _send_one(sub: PushSubscription, title: str, body: str, url: str) -> b
 def _send_sync(sub: PushSubscription, title: str, body: str, url: str) -> bool:
     """Synchronous push — called from a thread pool to avoid blocking the event loop."""
     try:
-        from pywebpush import webpush, WebPushException
-
+        
         payload = json.dumps({"title": title, "body": body, "url": url})
 
         webpush(

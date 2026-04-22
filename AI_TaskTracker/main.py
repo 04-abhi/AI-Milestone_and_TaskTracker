@@ -11,13 +11,16 @@ from app.core.config import settings
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.db.session import init_db
 from scripts.generate_vapid import ensure_vapid_keys
-
+from app.db.session import init_db
 app = FastAPI()
 
 
+    
+
 @app.on_event("startup")
-def startup():
+async def startup():
     ensure_vapid_keys()
+    await init_db()
 
 
 @asynccontextmanager
